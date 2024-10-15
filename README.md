@@ -29,6 +29,6 @@ This Flask project allows you to generate product descriptions using the Cohere 
 ## Running the application
 
 Start the Flask application:
-    ```bashpip
+    ```bash
     python app.py
     ```
