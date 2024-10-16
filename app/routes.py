@@ -1,4 +1,4 @@
-from flask import jsonify, Blueprint, make_response
+from flask import jsonify, request, Blueprint, make_response
 from app import get_db_connection, get_db_schema, get_api_connection
 from fpdf import FPDF
 import io
@@ -10,11 +10,17 @@ def get_db_schema_route():
     schema = get_db_schema()
     return jsonify(schema)
 
-@api.route('/get-data', methods=['GET'])
-def get_data():
+@api.route('/get-sql-response', methods=['POST'])
+def get_sql_respone():
+    data = request.get_json()
+    query = data.get("query")
+
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM PRODUCT")
+    cursor.execute(query)
     results = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -22,19 +28,25 @@ def get_data():
     return jsonify(results)
 
 @api.route('/generate-ai-response', methods=['POST'])
-def generate_description():
+def generate_ai_respone():
+    data = request.get_json()
+    prompt = data.get("prompt")
+
+    if not prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+    
     conn = get_api_connection()
     response = conn.chat(
         model="command-r-plus-08-2024",
         messages=[{
             "role": "user",
-            "content": "Écris une description de produit pour une voiture électrique en 50 à 75 mots"
+            "content": prompt
         }]
     )
     
     description_text = response.message.content[0].text
     
-    return jsonify({"description": description_text})
+    return jsonify({"response": description_text})
 
 @api.route('/generate-pdf', methods=['GET'])
 def generate_pdf():
