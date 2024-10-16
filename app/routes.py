@@ -2,6 +2,7 @@ from flask import jsonify, request, Blueprint, make_response
 from app import get_db_connection, get_db_schema, get_api_connection
 from fpdf import FPDF
 import io
+import matplotlib.pyplot as plt
 
 api = Blueprint('api', __name__)
 
@@ -75,5 +76,25 @@ def generate_pdf():
     response = make_response(pdf_output)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename="product_data_report.pdf"'
+
+    return response
+
+@api.route('/generate-chart', methods=['GET'])
+def generate_chart():
+    sales_data = [23, 45, 56, 78, 34, 22, 65, 89, 54, 34]
+
+    plt.figure(figsize=(8, 6))
+    plt.hist(sales_data, bins=5, color='blue', edgecolor='black')
+    plt.title("Sales Data Histogram")
+    plt.xlabel("Sales")
+    plt.ylabel("Frequency")
+
+    img_io = io.BytesIO()
+    plt.savefig(img_io, format='png')
+    img_io.seek(0)
+
+    response = make_response(img_io.read())
+    response.headers['Content-Type'] = 'image/png'
+    response.headers['Content-Disposition'] = 'inline; filename="sales_histogram.png"'
 
     return response
