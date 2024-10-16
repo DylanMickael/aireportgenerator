@@ -1,11 +1,27 @@
 from flask import jsonify, Blueprint, make_response
-from app import get_db_connection, get_api_connection
+from app import get_db_connection, get_db_schema, get_api_connection
 from fpdf import FPDF
 import io
 
 api = Blueprint('api', __name__)
 
-@api.route('/generate-description', methods=['POST'])
+@api.route('/get-db-schema', methods=['GET'])
+def get_db_schema_route():
+    schema = get_db_schema()
+    return jsonify(schema)
+
+@api.route('/get-data', methods=['GET'])
+def get_data():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM PRODUCT")
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(results)
+
+@api.route('/generate-ai-response', methods=['POST'])
 def generate_description():
     conn = get_api_connection()
     response = conn.chat(
@@ -20,35 +36,17 @@ def generate_description():
     
     return jsonify({"description": description_text})
 
-
-@api.route('/get-data', methods=['GET'])
-def get_data():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM PRODUCT")
-    results = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return jsonify(results)
-
-
 @api.route('/generate-pdf', methods=['GET'])
 def generate_pdf():
-    buffer = io.BytesIO()
-
     pdf = FPDF()
 
-    # Ajouter une page au PDF
     pdf.add_page()
 
-    # Définir la police
     pdf.set_font('Arial', 'B', 16)
     pdf.cell(200, 10, txt="Product Data Report", ln=True, align='C')
 
     pdf.ln(10)
 
-    # Données de produit simulées
     product_data = [
         {"name": "Car Model X", "description": "Electric car with high range and performance."},
         {"name": "Car Model Y", "description": "Compact electric car perfect for city driving."}
@@ -60,10 +58,8 @@ def generate_pdf():
         pdf.cell(200, 10, txt=f"Description: {product['description']}", ln=True)
         pdf.ln(10)
 
-    # Écrire le contenu PDF dans le buffer
-    pdf_output = pdf.output(dest='S').encode('latin1')  # Nécessaire pour gérer correctement l'encodage
+    pdf_output = pdf.output(dest='S').encode('latin1')
 
-    # Créer une réponse Flask avec le fichier PDF
     response = make_response(pdf_output)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename="product_data_report.pdf"'

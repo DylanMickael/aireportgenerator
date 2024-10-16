@@ -22,6 +22,37 @@ def get_db_connection():
     
     return conn
 
+def get_db_schema():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SHOW TABLES")
+    tables = cursor.fetchall()
+
+    schema = {}
+
+    for table in tables:
+        table_name = table[0]
+        cursor.execute(f"""
+            SELECT COLUMN_NAME, DATA_TYPE 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = '{table_name}'
+        """)
+        columns = cursor.fetchall()
+        
+        column_definitions = []
+        for column in columns:
+            column_name = column[0]
+            column_type = column[1]
+            column_definitions.append(f"{column_name} {column_type}")
+        
+        schema[table_name] = ", ".join(column_definitions)
+
+    cursor.close()
+    conn.close()
+
+    return schema
+
 def get_api_connection():
     api_key = config['API']['cohere_api_key']
     conn = cohere.ClientV2(api_key)
