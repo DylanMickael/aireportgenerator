@@ -1,88 +1,57 @@
 from flask import jsonify, request, Blueprint, make_response
-from app import get_db_connection, get_db_schema, get_api_connection
-from fpdf import FPDF
-import io
+from app.services.ai_service import AIService
+from app.services.db_service import DBService
+from app.models.Document import Document
 import matplotlib.pyplot as plt
+import io
 
 api = Blueprint('api', __name__)
 
 @api.route('/get-db-schema', methods=['GET'])
 def get_db_schema_route():
-    schema = get_db_schema()
+    schema = DBService.get_schema()
     return jsonify(schema)
 
 @api.route('/get-sql-response', methods=['POST'])
-def get_sql_respone():
+def get_sql_response():
     data = request.get_json()
     query = data.get("query")
 
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(query)
-    results = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return jsonify(results)
+    try:
+        results = DBService.execute_query(query)
+        return jsonify(results)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
 @api.route('/generate-ai-response', methods=['POST'])
-def generate_ai_respone():
+def generate_ai_response():
     data = request.get_json()
     prompt = data.get("prompt")
 
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
+    try:
+        response_text = AIService.generate_response(prompt)
+        return jsonify({"response": response_text})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/generate-document', methods=['GET'])
+def generate_document():
+    doc = Document()
     
-    conn = get_api_connection()
-    response = conn.chat(
-        model="command-r-plus-08-2024",
-        messages=[{
-            "role": "user",
-            "content": prompt
-        }]
-    )
+    doc.add_title("Product Data Report")
+    doc.add_subtitle("Generated Sales Report")
     
-    description_text = response.message.content[0].text
+    doc.add_text("This document contains the sales data for various products.")
     
-    return jsonify({"response": description_text})
-
-@api.route('/generate-pdf', methods=['GET'])
-def generate_pdf():
-    pdf = FPDF()
-
-    pdf.add_page()
-
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(200, 10, txt="Product Data Report", ln=True, align='C')
-
-    pdf.ln(10)
-
     product_data = [
         {"name": "Car Model X", "description": "Electric car with high range and performance."},
         {"name": "Car Model Y", "description": "Compact electric car perfect for city driving."}
     ]
-
-    pdf.set_font('Arial', '', 12)
-    for product in product_data:
-        pdf.cell(200, 10, txt=f"Product: {product['name']}", ln=True)
-        pdf.cell(200, 10, txt=f"Description: {product['description']}", ln=True)
-        pdf.ln(10)
-
-    pdf_output = pdf.output(dest='S').encode('latin1')
-
-    response = make_response(pdf_output)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'attachment; filename="product_data_report.pdf"'
-
-    return response
-
-@api.route('/generate-chart', methods=['GET'])
-def generate_chart():
+    
+    table_data = [["Name", "Description"]] + [[p['name'], p['description']] for p in product_data]
+    doc.add_table(table_data)
+    
     sales_data = [23, 45, 56, 78, 34, 22, 65, 89, 54, 34]
-
     plt.figure(figsize=(8, 6))
     plt.hist(sales_data, bins=5, color='blue', edgecolor='black')
     plt.title("Sales Data Histogram")
@@ -91,10 +60,15 @@ def generate_chart():
 
     img_io = io.BytesIO()
     plt.savefig(img_io, format='png')
+    plt.close()
     img_io.seek(0)
 
-    response = make_response(img_io.read())
-    response.headers['Content-Type'] = 'image/png'
-    response.headers['Content-Disposition'] = 'inline; filename="sales_histogram.png"'
+    doc.add_image(img_io)
 
+    pdf_output = doc.generate()
+    
+    response = make_response(pdf_output)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename="product_data_report.pdf"'
+    
     return response
