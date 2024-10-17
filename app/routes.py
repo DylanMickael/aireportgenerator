@@ -1,6 +1,6 @@
 from flask import jsonify, request, Blueprint, make_response
-from app.services.ai_service import AIService
-from app.services.db_service import DBService
+from app.services.AIService import AIService
+from app.services.DBService import DBService
 from app.models.Document import Document
 import matplotlib.pyplot as plt
 import io
@@ -29,7 +29,7 @@ def generate_ai_response():
     prompt = data.get("prompt")
 
     try:
-        response_text = AIService.generate_response(prompt)
+        response_text = AIService.generate_and_execute_python(prompt)
         return jsonify({"response": response_text})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
