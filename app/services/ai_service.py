@@ -1,17 +1,15 @@
 # app/services/ai_service.py
 from app import get_api_connection
+from app.models.AIModel import AIModel
 
 class AIService:
     @staticmethod
     def generate_response(prompt):
-        if not prompt:
-            raise ValueError("No prompt provided")
+        model = AIModel()
+        preamble = "Answer in one sentence"
 
-        conn = get_api_connection()
-        response = conn.chat(
-            model="command-r-plus-08-2024",
-            messages=[{"role": "user", "content": prompt}]
-        )
+        model.create_conversation(preamble, prompt) # prompt = "I love ..."
+        response_text = model.continue_conversation(preamble, "What do I love ?")
+        model.stop_conversation()
 
-        description_text = response.message.content[0].text
-        return description_text
+        return response_text

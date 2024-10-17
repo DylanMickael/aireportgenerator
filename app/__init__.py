@@ -55,7 +55,7 @@ def get_db_schema():
 
 def get_api_connection():
     api_key = config['API']['cohere_api_key']
-    conn = cohere.ClientV2(api_key)
+    conn = cohere.Client(api_key)
     return conn
 
 def create_app():
