@@ -29,7 +29,7 @@ def generate_ai_response():
     prompt = data.get("prompt")
 
     try:
-        response_text = AIService.generate_and_execute_python(prompt)
+        response_text = AIService.generate_response(prompt)
         return jsonify({"response": response_text})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
